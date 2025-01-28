@@ -1,7 +1,9 @@
 package main
 
 import (
+    "encoding/json"
     "fmt"
+    "io/ioutil"
     "net"
     "os"
     "strconv"
@@ -9,16 +11,34 @@ import (
     "sync"
     "time"
     "bufio"
-    "flag"
 )
 
+var serviceList map[string]string
+var openColor = "\033[92m"
+var closedColor = "\033[91m"
+var unknownColor = "\033[33m" // نارنجی برای بنرهای ناشناخته
+var resetColor = "\033[0m"
+var unknownBannerColor = "\033[33m" // زرد برای بنرهای ناشناخته که پیدا نشدن
 
-var (
-    openColor   = "\033[92m"
-    closedColor = "\033[91m"
-    resetColor  = "\033[0m"
-)
+func loadServices() error {
+    data, err := ioutil.ReadFile("services.json")
+    if err != nil {
+        return fmt.Errorf("error reading services file: %v", err)
+    }
+    serviceList = make(map[string]string)
+    err = json.Unmarshal(data, &serviceList)
+    if err != nil {
+        return fmt.Errorf("error parsing services JSON: %v", err)
+    }
+    return nil
+}
 
+func getServiceName(port int) string {
+    if service, exists := serviceList[strconv.Itoa(port)]; exists {
+        return service
+    }
+    return "Unknown"
+}
 
 func detectService(host string, port int) string {
     target := fmt.Sprintf("%s:%d", host, port)
@@ -27,69 +47,76 @@ func detectService(host string, port int) string {
         return ""
     }
     defer conn.Close()
-
+   
+    service := getServiceName(port)
+    if service != "Unknown" {
+        return service
+    }
+   
     conn.SetDeadline(time.Now().Add(2 * time.Second))
     reader := bufio.NewReader(conn)
     banner, _ := reader.ReadString('\n')
-
+   
     banner = strings.TrimSpace(banner)
     if banner != "" {
         return fmt.Sprintf("Custom: %s", banner)
     }
-
+   
     return "Unknown"
 }
 
-
 func scanPort(host string, port int, wg *sync.WaitGroup, results chan<- string) {
     defer wg.Done()
-
+   
     target := fmt.Sprintf("%s:%d", host, port)
     conn, err := net.DialTimeout("tcp", target, 2*time.Second)
     if err != nil {
         results <- fmt.Sprintf("%s[CLOSED] Port %d is closed%s", closedColor, port, resetColor)
         return
     }
-
+   
     conn.Close()
     service := detectService(host, port)
-    if service != "" {
+    if service != "" && service != "Unknown" {
         results <- fmt.Sprintf("%s[OPEN] Port %d is open - Service: %s%s", openColor, port, service, resetColor)
+    } else if service == "Unknown" {
+        results <- fmt.Sprintf("%s[OPEN] Port %d is open - Service: %s%s", unknownBannerColor, port, service, resetColor)
     } else {
         results <- fmt.Sprintf("%s[OPEN] Port %d is open%s", openColor, port, resetColor)
     }
 }
 
-
-func printHelp() {
+func showHelp() {
     fmt.Println("Usage: <program> <host> <startPort> <endPort>")
-    fmt.Println("Options:")
-    fmt.Println("-h : Show this help message")
+    fmt.Println("\nFlags:")
+    fmt.Println("-h   Show this help message.")
 }
 
-
 func main() {
-    help := flag.Bool("h", false, "Show help message")
-    flag.Parse()
-
-    if *help {
-        printHelp()
+    if len(os.Args) == 2 && os.Args[1] == "-h" {
+        showHelp()
         os.Exit(0)
     }
-
-    if len(flag.Args()) != 3 {
-        printHelp()
+   
+    err := loadServices()
+    if err != nil {
+        fmt.Printf("Error loading services: %v\n", err)
         os.Exit(1)
     }
-
-    host := flag.Args()[0]
-    startPort, _ := strconv.Atoi(flag.Args()[1])
-    endPort, _ := strconv.Atoi(flag.Args()[2])
+   
+    if len(os.Args) != 4 {
+        fmt.Println("Usage: <program> <host> <startPort> <endPort>")
+        os.Exit(1)
+    }
+    host := os.Args[1]
+    startPort, _ := strconv.Atoi(os.Args[2])
+    endPort, _ := strconv.Atoi(os.Args[3])
 
     var wg sync.WaitGroup
     results := make(chan string, endPort-startPort+1)
     fmt.Printf("Starting port scan on host %s...\n", host)
-
+   
+    // چک کردن هاست
     if net.ParseIP(host) == nil {
         _, err := net.LookupHost(host)
         if err != nil {
