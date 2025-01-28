@@ -15,15 +15,8 @@ This program is a simple TCP port scanner that allows you to scan open ports on 
 - Operating systems like Linux, macOS, or Windows
 
 ## How to Use
+##
 
-### Usage on Windows
-###
 ```bash
-go run main.go <host> <startPort> <endPort>
-```
-
-### Usage on Linux
-###
-```bash
-go run main.go <host> <startPort> <endPort>
+./portscanner.exe <host> <startPort> <endPort>
 ```
