@@ -16,9 +16,9 @@ import (
 var serviceList map[string]string
 var openColor = "\033[92m"
 var closedColor = "\033[91m"
-var unknownColor = "\033[33m" // نارنجی برای بنرهای ناشناخته
+var unknownColor = "\033[33m"
 var resetColor = "\033[0m"
-var unknownBannerColor = "\033[33m" // زرد برای بنرهای ناشناخته که پیدا نشدن
+var unknownBannerColor = "\033[33m"
 
 func loadServices() error {
     data, err := ioutil.ReadFile("services.json")
@@ -116,7 +116,6 @@ func main() {
     results := make(chan string, endPort-startPort+1)
     fmt.Printf("Starting port scan on host %s...\n", host)
    
-    // چک کردن هاست
     if net.ParseIP(host) == nil {
         _, err := net.LookupHost(host)
         if err != nil {
