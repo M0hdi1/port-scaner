@@ -16,9 +16,7 @@ import (
 var serviceList map[string]string
 var openColor = "\033[92m"
 var closedColor = "\033[91m"
-var unknownColor = "\033[33m"
 var resetColor = "\033[0m"
-var unknownBannerColor = "\033[33m"
 
 func loadServices() error {
     data, err := ioutil.ReadFile("services.json")
@@ -47,42 +45,37 @@ func detectService(host string, port int) string {
         return ""
     }
     defer conn.Close()
-   
+
     service := getServiceName(port)
     if service != "Unknown" {
         return service
     }
-   
+
     conn.SetDeadline(time.Now().Add(2 * time.Second))
     reader := bufio.NewReader(conn)
     banner, _ := reader.ReadString('\n')
-   
+    
     banner = strings.TrimSpace(banner)
     if banner != "" {
         return fmt.Sprintf("Custom: %s", banner)
     }
-   
-    return "Unknown"
+    
+    return ""
 }
 
 func scanPort(host string, port int, wg *sync.WaitGroup, results chan<- string) {
     defer wg.Done()
-   
+
     target := fmt.Sprintf("%s:%d", host, port)
     conn, err := net.DialTimeout("tcp", target, 2*time.Second)
     if err != nil {
-        results <- fmt.Sprintf("%s[CLOSED] Port %d is closed%s", closedColor, port, resetColor)
         return
     }
-   
     conn.Close()
+
     service := detectService(host, port)
-    if service != "" && service != "Unknown" {
+    if service != "" {
         results <- fmt.Sprintf("%s[OPEN] Port %d is open - Service: %s%s", openColor, port, service, resetColor)
-    } else if service == "Unknown" {
-        results <- fmt.Sprintf("%s[OPEN] Port %d is open - Service: %s%s", unknownBannerColor, port, service, resetColor)
-    } else {
-        results <- fmt.Sprintf("%s[OPEN] Port %d is open%s", openColor, port, resetColor)
     }
 }
 
@@ -97,13 +90,13 @@ func main() {
         showHelp()
         os.Exit(0)
     }
-   
+
     err := loadServices()
     if err != nil {
         fmt.Printf("Error loading services: %v\n", err)
         os.Exit(1)
     }
-   
+
     if len(os.Args) != 4 {
         fmt.Println("Usage: <program> <host> <startPort> <endPort>")
         os.Exit(1)
@@ -115,7 +108,7 @@ func main() {
     var wg sync.WaitGroup
     results := make(chan string, endPort-startPort+1)
     fmt.Printf("Starting port scan on host %s...\n", host)
-   
+
     if net.ParseIP(host) == nil {
         _, err := net.LookupHost(host)
         if err != nil {
