@@ -1,21 +1,40 @@
 package main
 
+/* ---------------------------------------- */
+/* |                                      | */
+/* |           import Librerie            | */
+/* |                                      | */
+/* ---------------------------------------- */
+
 import (
 	"bufio"
 	"encoding/json"
 	"fmt"
 	"net"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 )
 
+/* ---------------------------------------- */
+/* |                                      | */
+/* |            initial color             | */
+/* |                                      | */
+/* ---------------------------------------- */
+
 var serviceList map[string]string
 var openColor = "\033[92m"
 var closedColor = "\033[91m"
 var resetColor = "\033[0m"
+
+/* ---------------------------------------- */
+/* |                                      | */
+/* |      Load Service List function      | */
+/* |                                      | */
+/* ---------------------------------------- */
 
 func loadServices() error {
 	data, err := os.ReadFile("services.json")
@@ -29,12 +48,24 @@ func loadServices() error {
 	return nil
 }
 
+/* ---------------------------------------- */
+/* |                                      | */
+/* |      get Name Service function       | */
+/* |                                      | */
+/* ---------------------------------------- */
+
 func getServiceName(port int) string {
 	if service, exists := serviceList[strconv.Itoa(port)]; exists {
 		return service
 	}
 	return "Unknown"
 }
+
+/* ---------------------------------------- */
+/* |                                      | */
+/* |      Load Service List function      | */
+/* |                                      | */
+/* ---------------------------------------- */
 
 func detectService(host string, port int) string {
 	target := fmt.Sprintf("%s:%d", host, port)
@@ -61,6 +92,12 @@ func detectService(host string, port int) string {
 	return "Unknown"
 }
 
+/* ---------------------------------------- */
+/* |                                      | */
+/* |         Scan Port Function           | */
+/* |                                      | */
+/* ---------------------------------------- */
+
 func scanPort(host string, port int, results chan<- string) {
 	target := fmt.Sprintf("%s:%d", host, port)
 	conn, err := net.DialTimeout("tcp", target, 2*time.Second)
@@ -76,11 +113,23 @@ func scanPort(host string, port int, results chan<- string) {
 	}
 }
 
+/* ---------------------------------------- */
+/* |                                      | */
+/* |          Show Help Function          | */
+/* |                                      | */
+/* ---------------------------------------- */
+
 func showHelp() {
 	fmt.Println("Usage: <program> <host> <startPort> <endPort>")
 	fmt.Println("\nFlags:")
 	fmt.Println("-h   Show this help message.")
 }
+
+/* ---------------------------------------- */
+/* |                                      | */
+/* |            Main Function             | */
+/* |                                      | */
+/* ---------------------------------------- */
 
 func main() {
 	if len(os.Args) == 2 && os.Args[1] == "-h" {
@@ -114,6 +163,8 @@ func main() {
 		}
 	}
 
+	var allResults []string
+
 	for port := startPort; port <= endPort; port++ {
 		wg.Add(1)
 		go func(p int) {
@@ -128,6 +179,16 @@ func main() {
 	}()
 
 	for result := range results {
+		allResults = append(allResults, result)
+	}
+
+	sort.Slice(allResults, func(i, j int) bool {
+		portI, _ := strconv.Atoi(strings.Fields(allResults[i])[2])
+		portJ, _ := strconv.Atoi(strings.Fields(allResults[j])[2])
+		return portI < portJ
+	})
+
+	for _, result := range allResults {
 		fmt.Println(result)
 	}
 }
