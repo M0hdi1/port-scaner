@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"strconv"
@@ -19,11 +18,10 @@ var closedColor = "\033[91m"
 var resetColor = "\033[0m"
 
 func loadServices() error {
-	data, err := ioutil.ReadFile("services.json")
+	data, err := os.ReadFile("services.json")
 	if err != nil {
 		return fmt.Errorf("error reading services file: %v", err)
 	}
-	serviceList = make(map[string]string)
 	err = json.Unmarshal(data, &serviceList)
 	if err != nil {
 		return fmt.Errorf("error parsing services JSON: %v", err)
@@ -63,9 +61,7 @@ func detectService(host string, port int) string {
 	return "Unknown"
 }
 
-func scanPort(host string, port int, wg *sync.WaitGroup, results chan<- string) {
-	defer wg.Done()
-
+func scanPort(host string, port int, results chan<- string) {
 	target := fmt.Sprintf("%s:%d", host, port)
 	conn, err := net.DialTimeout("tcp", target, 2*time.Second)
 	if err != nil {
@@ -120,7 +116,10 @@ func main() {
 
 	for port := startPort; port <= endPort; port++ {
 		wg.Add(1)
-		go scanPort(host, port, &wg, results)
+		go func(p int) {
+			defer wg.Done()
+			scanPort(host, p, results)
+		}(port)
 	}
 
 	go func() {

@@ -1,10 +1,10 @@
-# Port Scanner
+# Port Scaner
 
-This program is a simple TCP port scanner that allows you to scan open ports on a specific host. It also identifies any running services on those open ports and displays their names, if available.
+This program is a simple TCP port scaner that allows you to scan open ports on a specific host. It also identifies any running services on those open ports and displays their names, if available.
 
 ## Features
 
-- TCP port scanning
+- TCP port scaning
 - Identifying services on open ports
 - Color-coded output for port statuses
 - Detection of custom services through banners
@@ -18,5 +18,5 @@ This program is a simple TCP port scanner that allows you to scan open ports on 
 ##
 
 ```bash
-./portscanner.exe <host> <startPort> <endPort>
+./portscaner.exe <host> <startPort> <endPort>
 ```
